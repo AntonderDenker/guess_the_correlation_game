@@ -1,0 +1,32 @@
+# formulas
+def mean(list):
+    sum = 0
+    for i in range(len(list)):
+        sum += list[i]
+
+    return sum / len(list)
+
+
+def c_xy(x_list, y_list):
+    x_mean = mean(x_list)
+    y_mean = mean(y_list)
+    n = len(x_list)
+    sum = 0
+    for x in range(len(x_list)):
+        sum += (x_list[x] - x_mean) * (y_list[x] - y_mean)
+
+    return (1 / (n - 1)) * sum
+
+
+def s(list):
+    mean_ = mean(list)
+    sum = 0
+    for i in range(len(list)):
+        sum += (list[i] - mean_) ** 2
+
+    return (sum / (len(list) - 1)) ** (1 / 2)
+
+
+def r(x_list, y_list):
+    return c_xy(x_list, y_list) / (s(x_list) * s(y_list))
+
