@@ -1,4 +1,5 @@
 # guess the correlation
+print("The application needs up to 15 seconds to start...")
 import threading
 
 import matplotlib
@@ -6,11 +7,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 import colorama as color
 import random
-
+import requests
 import os
+import pygetwindow
+import ctypes
 
-version = "1.0.4 Alpha"
 
+def check_github_release(repo_owner, repo_name):
+    api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        release = response.json()
+        latest_version = release['tag_name']
+        # Compare the latest version with the current version of your application
+        # and determine if an update is available
+        return latest_version
+    else:
+        # Handle error response
+        return None
+
+
+new_version = check_github_release("AntonderDenker", "guess_the_correlation_game")
+
+version = "v1.0.5"
 
 color.init()
 matplotlib.interactive(True)
@@ -22,6 +41,9 @@ RESET = color.Style.RESET_ALL
 GREEN = color.Fore.GREEN
 RED = color.Fore.RED
 BRIGHT = color.Style.BRIGHT
+
+ctypes.windll.kernel32.SetConsoleTitleW("guess_the_correlation")
+console_window = pygetwindow.getWindowsWithTitle('guess_the_correlation')[0]
 
 
 def get_banner(text):
@@ -67,7 +89,7 @@ class Game:
             rnd_r = float(rnd_r)
             data = random_data(rnd_r)
             create_plot(data)
-
+            console_window.activate()
             guess = input(f"{BRIGHT}Guess the correlation coefficient of this data: {RESET}")
             guess = float(guess)
             print(f"The correlation coefficient was {BRIGHT + str(rnd_r) + RESET}")
@@ -98,13 +120,16 @@ class Game:
                 self.playing = True
                 plt.close()
             else:
-                print(f"Score: {GREEN+str(self.points)+RESET}")
-                print(f"Health: {RED+str(self.health)}/3"+RESET)
+                print(f"Score: {GREEN + str(self.points) + RESET}")
+                print(f"Health: {RED + str(self.health)}/3" + RESET)
                 input(f"{BRIGHT}Next plot?{RESET} [press enter]")
                 plt.close()
 
 
-print(f"{RED + get_banner(version) + RESET}")
+clear_console()
+print(f"{BRIGHT + get_banner(version) + RESET}")
+if version != new_version:
+    print(f"{RED}There is a new version {new_version} online. Use autoupdater to get the new updates!{RESET}")
 print(f"Welcome to {BRIGHT}Guess The Correlation{RESET}!")
 print(f"{color.Style.DIM}developed by Anton Hauffe, inspired by https://www.guessthecorrelation.com/ {RESET}")
 print(f"{BRIGHT + get_banner('Tutorial') + RESET}")
