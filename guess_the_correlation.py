@@ -12,6 +12,29 @@ import os
 import pygetwindow
 import ctypes
 import sys
+import mysql.connector
+
+# database
+db_name = "db_390976_24"
+db = mysql.connector.connect(
+    host="antondereroberer.lima-db.de",
+    user="USER390976_gtc",
+    password="XerXes0909#",
+    database=db_name
+)
+
+db_cursor = db.cursor()
+
+
+def insert_session(points, name):
+    statement = (f"INSERT INTO session"
+                 "(points, name)"
+                 "VALUES (%s, %s)")
+    values = (points, name)
+    db_cursor.execute(statement, values)
+    db.commit()
+
+
 
 
 def check_github_release(repo_owner, repo_name):
@@ -30,7 +53,7 @@ def check_github_release(repo_owner, repo_name):
 
 new_version = check_github_release("AntonderDenker", "guess_the_correlation_game")
 
-version = "v1.0.6"
+version = "v1.0.7"
 
 color.init()
 matplotlib.interactive(True)
@@ -172,10 +195,13 @@ class Game:
 
     def game_over(self):
         self.playing = False
+        self.history.append(self.points)
         print(f"{set_format('You lost all your health points!', 'RED')}")
         print(f"{set_format(get_banner('Statistics'), 'BRIGHT')}")
         print(f"Points: {set_format(self.points, 'GREEN')}")
         print(f"{set_format(get_banner('Statistics End'), 'BRIGHT')}")
+        insert = threading.Thread(target=insert_session(self.points, self.name))
+        insert.start()
         loop = True
         while loop:
             play_again = input(f"If you want to play again type [y] -> [enter] or if not type [n] -> [enter]")
@@ -183,6 +209,11 @@ class Game:
                 self.start()
                 loop = False
             elif play_again == "n":
+                print(f"{forms['BRIGHT']}{get_banner('History')}{forms['RESET']}")
+                for i in range(len(self.history)):
+                    print(f"{i+1}. Game: {set_format(self.history[i], 'GREEN')}")
+                print(f"{forms['BRIGHT']}{get_banner('History End')}{forms['RESET']}")
+                input("Press [enter] to close")
                 sys.exit()
             else:
                 print("only [y] or [n] accepted")
