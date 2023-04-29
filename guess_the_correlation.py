@@ -1,7 +1,7 @@
 # guess the correlation
 print("The application needs up to 15 seconds to start...")
-import threading
 
+import threading
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +11,7 @@ import requests
 import os
 import pygetwindow
 import ctypes
+import sys
 
 
 def check_github_release(repo_owner, repo_name):
@@ -29,18 +30,24 @@ def check_github_release(repo_owner, repo_name):
 
 new_version = check_github_release("AntonderDenker", "guess_the_correlation_game")
 
-version = "v1.0.5"
+version = "v1.0.6"
 
 color.init()
 matplotlib.interactive(True)
 plt.ion()
 
 # formats
+forms = {
+    "RESET": color.Style.RESET_ALL,
+    "GREEN": color.Fore.GREEN,
+    "RED": color.Fore.RED,
+    "BRIGHT": color.Style.BRIGHT,
+}
 
-RESET = color.Style.RESET_ALL
-GREEN = color.Fore.GREEN
-RED = color.Fore.RED
-BRIGHT = color.Style.BRIGHT
+
+def set_format(text, form):
+    return f"{forms[form]}{text}{forms['RESET']}"
+
 
 ctypes.windll.kernel32.SetConsoleTitleW("guess_the_correlation")
 console_window = pygetwindow.getWindowsWithTitle('guess_the_correlation')[0]
@@ -59,6 +66,10 @@ def random_data(correlation_coefficient):
     return [x, y]
 
 
+def get_r():
+    return float(round(random.uniform(0, 1), 2))
+
+
 def create_plot(data):
     plt.scatter(data[0], data[1])
     plt.show()
@@ -71,80 +82,136 @@ def clear_console():
         os.system('clear')
 
 
+def print_tutorial():
+    print(f"Welcome to {set_format('Guess The Correlation', 'BRIGHT')}!")
+    print(
+        f"{color.Style.DIM}developed by Anton Hauffe, inspired by https://www.guessthecorrelation.com/ {forms['RESET']}")
+    print(f"{set_format(get_banner('Tutorial'), 'BRIGHT')}")
+    print("-> Wait until the scatterplot appears")
+    print("-> I recommend to drag the console window to the right of your screen since the appearing plot could "
+          "eventually cover the console.")
+    print("-> guess the correlation coefficient between 0 and 1")
+    print(f"-> if you are close, {set_format('(+-0.1)', 'GREEN')} you get {set_format('1', 'GREEN')} point")
+    print(f"-> if you are closer, {set_format('(+-0.05)', 'GREEN')}) you get {set_format('2', 'GREEN')} points")
+    print(f"-> if you very close, {set_format('(+-0.02)', 'GREEN')} you get {set_format('5', 'GREEN')} points")
+    print(f"-> if you are {set_format('exact', 'GREEN')}, you get {set_format('10', 'GREEN')} points")
+    print(f"-> if you missed, you lose {set_format('1 of 3', 'RED')} health points")
+    print(f"{set_format('GOOD LUCK!', 'GREEN')}")
+    print(f"{set_format(get_banner('Tutorial End'), 'BRIGHT')}")
+
+
 class Game:
     def __init__(self, name):
+        self.health = None
+        self.points = None
         self.name = name
-        self.points = 0
-        self.health = 3
+
         self.playing = True
         self.history = []
 
-        self.game_loop = threading.Thread(target=self.game_loop())
-        self.game_loop.start()
+        # Rules
+        self.point_distribution = [
+            {"reward": 10, "deviation": 0},
+            {"reward": 5, "deviation": 0.02},
+            {"reward": 2, "deviation": 0.05},
+            {"reward": 1, "deviation": 0.1},
+        ]
+        self.max_health = 3
 
     def game_loop(self):
         while self.playing:
+            plt.close()
             clear_console()
-            rnd_r = round(random.uniform(0, 1), 2)
-            rnd_r = float(rnd_r)
+            # generate data and r
+            rnd_r = get_r()
             data = random_data(rnd_r)
             create_plot(data)
             console_window.activate()
-            guess = input(f"{BRIGHT}Guess the correlation coefficient of this data: {RESET}")
-            guess = float(guess)
-            print(f"The correlation coefficient was {BRIGHT + str(rnd_r) + RESET}")
-            if guess == rnd_r:
-                print(GREEN + f"Congratulation, you earned {BRIGHT}10{RESET}{GREEN} points!" + RESET)
-                self.points += 10
-            elif (rnd_r - 0.02) <= guess <= (rnd_r + 0.02):
-                print(GREEN + f"Congratulation, you earned {BRIGHT}5{RESET}{GREEN} points!" + RESET)
-                self.points += 5
-            elif (rnd_r - 0.05) <= guess <= (rnd_r + 0.05):
-                print(GREEN + f"Congratulation, you earned {BRIGHT}2{RESET}{GREEN} points!" + RESET)
-                self.points += 2
-            elif (rnd_r - 0.1) <= guess <= (rnd_r + 0.1):
-                print(GREEN + f"Congratulation, you earned {BRIGHT}1{RESET}{GREEN} point!" + RESET)
-                self.points += 1
-            else:
-                print(RED + f"Oh no! you lost {BRIGHT}1{RESET + RED} health point!" + RESET)
-                self.health -= 1
+            # ask for users guess
+            loop = True
+            while loop:
+                guess = input(f"{set_format('Guess the correlation coefficient of this data:', 'BRIGHT')}")
+                guess = guess.replace(",", ".")
+                if guess.isnumeric() or (guess.count('.') == 1 and guess.replace('.', '').isnumeric()):
+                    guess = float(guess)
+                    if 0 <= guess <= 1:
+                        loop = False
+                        break
+                print("Only numbers between 0 and 1 allowed")
 
-            if self.health == 0:
-                self.playing = False
-                print(f"{RED}You lost all your health points!{RESET}")
-                print(f"You earned {GREEN + str(self.points) + RESET} points in total. Congratulation!")
-                input("[Press Enter to play again]")
-                self.history.append(self.points)
-                self.points = 0
-                self.health = 3
-                self.playing = True
-                plt.close()
+            # check if guess was right
+            print(f"Your Guess: {set_format(guess, 'BRIGHT')}")
+            print(f"r: {set_format(rnd_r, 'BRIGHT')}")
+            print(f"Difference: {set_format(round((guess - rnd_r), 2), 'BRIGHT')}")
+            self.check_guess(guess, rnd_r)
+            input("Next plot? [press enter]")
+
+    def start(self):
+        self.points = 0
+        self.health = self.max_health
+        self.playing = True
+        game_loop = threading.Thread(target=self.game_loop())
+        game_loop.start()
+
+    def update_points(self, points):
+        self.points += points
+        print(forms[
+                  "GREEN"] + f"Congratulation, you earned {forms['GREEN']}{points}{forms['RESET']}{forms['GREEN']} points!" +
+              forms['RESET'])
+
+    def update_health(self, value):
+        self.health += value
+        print(
+            f"{forms['RED']}The {set_format('difference', 'BRIGHT')}{forms['RED']} between your guess and r was too large{forms['RESET']}")
+        if self.health == 0:
+            self.game_over()
+        else:
+            print(forms[
+                      'RED'] + f"Oh no! your health changed to {forms['BRIGHT']}{str(self.health) + '/' + str(self.max_health)}{forms['RESET'] + forms['RED']}!" +
+                  forms['RESET'])
+
+    def game_over(self):
+        self.playing = False
+        print(f"{set_format('You lost all your health points!', 'RED')}")
+        print(f"{set_format(get_banner('Statistics'), 'BRIGHT')}")
+        print(f"Points: {set_format(self.points, 'GREEN')}")
+        print(f"{set_format(get_banner('Statistics End'), 'BRIGHT')}")
+        loop = True
+        while loop:
+            play_again = input(f"If you want to play again type [y] -> [enter] or if not type [n] -> [enter]")
+            if play_again == "y":
+                self.start()
+                loop = False
+            elif play_again == "n":
+                sys.exit()
             else:
-                print(f"Score: {GREEN + str(self.points) + RESET}")
-                print(f"Health: {RED + str(self.health)}/3" + RESET)
-                input(f"{BRIGHT}Next plot?{RESET} [press enter]")
-                plt.close()
+                print("only [y] or [n] accepted")
+
+    def check_guess(self, guess, r):
+        right_guess = False
+        for i in range(len(self.point_distribution)):
+            deviation = self.point_distribution[i]['deviation']
+            lower_barrier = round((r - deviation), 2)
+            upper_barrier = round((r + deviation), 2)
+            # print(f"{lower_barrier} + {upper_barrier}")
+            if lower_barrier <= guess <= upper_barrier:
+                self.update_points(self.point_distribution[i]['reward'])
+                print(f"Health: {set_format(str(self.health) + '/' + str(self.max_health), 'RED')}")
+                print(f"Points: {set_format(self.points, 'GREEN')}")
+                right_guess = True
+                break
+
+        if not right_guess:
+            self.update_health(-1)
 
 
 clear_console()
-print(f"{BRIGHT + get_banner(version) + RESET}")
+print(f"{set_format(get_banner(version), 'BRIGHT')}")
 if version != new_version:
-    print(f"{RED}There is a new version {new_version} online. Use autoupdater to get the new updates!{RESET}")
-print(f"Welcome to {BRIGHT}Guess The Correlation{RESET}!")
-print(f"{color.Style.DIM}developed by Anton Hauffe, inspired by https://www.guessthecorrelation.com/ {RESET}")
-print(f"{BRIGHT + get_banner('Tutorial') + RESET}")
-print("-> Wait until the scatterplot appears")
-print("-> I recommend to drag the console window to the right of your screen since the appearing plot could "
-      "eventually cover the console.")
-print("-> Furthermore, you have to click at the console after a plot was drawn or a new round was started")
-print("-> guess the correlation coefficient between 0 and 1")
-print(f"-> if you are close, (+-0.1) you get {GREEN}1{RESET} point")
-print(f"-> if you are closer, (+-0.05) you get {GREEN}2{RESET} points")
-print(f"-> if you very close, (+-0.02) you get {GREEN}5{RESET} points")
-print(f"-> if you are exact, you get {BRIGHT + GREEN}10{RESET} points")
-print(f"-> if you missed, you lose {RED}1 of 3{RESET} health points")
-print(f"{BRIGHT + GREEN}Good Luck!{RESET}")
-print(f"{BRIGHT + get_banner('Tutorial End') + RESET}")
+    print(
+        f"{forms['RED']}There is a new version ({new_version}) of the game. Please update using the 'installer_updater.exe'{forms['RESET']}")
+print_tutorial()
 input("[Press Enter to start the game]")
 username = input("Enter your name:")
 game = Game(username)
+game.start()
